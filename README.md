@@ -140,3 +140,7 @@ ruff check .     # lint
 pytest -q        # tests (CPU path; onnxruntime-gpu is not required)
 ```
 
+## License
+
+This project is licensed under the [GNU General Public License v3.0 or later](https://www.gnu.org/licenses/gpl-3.0.html) (GPL-3.0-or-later), to stay consistent with [Piper](https://github.com/OHF-Voice/piper1-gpl). See [`LICENSE`](./LICENSE) for the full text.
+

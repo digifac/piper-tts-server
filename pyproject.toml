@@ -8,7 +8,8 @@ version = "0.1.0"
 description = "Low-latency, OpenAI-compatible text-to-speech HTTP server based on Piper (ONNX Runtime)."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { file = "LICENSE" }
+# SPDX-License-Identifier: GPL-3.0-or-later (kept in sync with the LICENSE file).
+license = { text = "GPL-3.0-or-later" }
 authors = [{ name = "piper-tts-server contributors" }]
 
 dependencies = [
