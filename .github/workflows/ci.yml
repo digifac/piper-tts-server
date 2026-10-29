@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    name: Lint & Test (CPU)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies (CPU)
+        run: |
+          python -m pip install --upgrade pip
+          # CPU path only — onnxruntime-gpu is intentionally NOT installed in CI,
+          # so the fallback-to-CPU behavior is exercised.
+          pip install ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Run tests (pytest)
+        run: pytest -q
+
+  build-images:
+    name: Build Docker images (${{ matrix.variant }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [cpu, gpu]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Building the GPU image only validates that it compiles and its deps resolve;
+      # actual CUDA inference is not run in CI (no GPU on the runner).
+      - name: Build ${{ matrix.variant }} image
+        run: docker build -f Dockerfile.${{ matrix.variant }} -t piper-tts-server:${{ matrix.variant }} .

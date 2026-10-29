@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "piper-tts-server"
+version = "0.1.0"
+description = "Low-latency, OpenAI-compatible text-to-speech HTTP server based on Piper (ONNX Runtime)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "piper-tts-server contributors" }]
+
+dependencies = [
+    # piper-tts pulls in the CPU build of onnxruntime by default.
+    "piper-tts>=1.2",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "prometheus-client>=0.20",
+    "pydantic-settings>=2.2",
+    "huggingface-hub>=0.23",
+]
+
+[project.optional-dependencies]
+# GPU support: install onnxruntime-gpu alongside the app for CUDA inference.
+gpu = ["onnxruntime-gpu"]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",  # required by fastapi TestClient
+    "ruff>=0.4",
+]
+
+[project.scripts]
+piper-tts-server = "piper_tts_server.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

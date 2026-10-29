@@ -1,0 +1,17 @@
+# Service exposing the piper-tts-server HTTP API.
+# The CPU and GPU deployments share this service via the `app: piper-tts` label;
+# run only ONE of them at a time (they both bind port 8000). To target a specific
+# variant, add a `variant` selector below (e.g. matchLabels with variant: cpu|gpu).
+apiVersion: v1
+kind: Service
+metadata:
+  name: piper-tts
+spec:
+  type: ClusterIP # change to LoadBalancer/NodePort if you need external access
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: piper-tts

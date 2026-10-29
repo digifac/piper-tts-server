@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1
+# GPU image for piper-tts-server.
+# Inference runs on ONNX Runtime (CUDA) via the `onnxruntime-gpu` package, which
+# is added by the project's `[gpu]` extra. cuDNN / cuBLAS are provided as pip
+# wheels (nvidia-cudnn-cu12 etc.) so no system-wide CUDA toolkit install is needed;
+# only the host NVIDIA driver + nvidia-container-toolkit are required at runtime.
+
+FROM python:3.12-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    TTS_VOICE_CACHE_DIR=/data/voices \
+    # onnxruntime-gpu loads cuDNN/cuBLAS from the nvidia pip wheels; make sure the
+    # loader can find them without requiring a system CUDA install.
+    LD_LIBRARY_PATH=/usr/local/lib/python3.12/site-packages/nvidia/cudnn/lib:/usr/local/lib/python3.12/site-packages/nvidia/cublas/lib:/usr/local/lib/python3.12/site-packages/nvidia/cuda_nvrtc/lib
+
+# espeak-ng is required by Piper for phonemization; libgomp for OpenMP kernels.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libespeak-ng1 libgomp1 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install the project with the GPU extra (onnxruntime-gpu) plus cuDNN/cuBLAS wheels.
+COPY pyproject.toml README.md ./
+COPY src ./src
+RUN pip install --no-cache-dir ".[gpu]" nvidia-cudnn-cu12
+
+# Run as a non-root user; give it ownership of the voice cache dir.
+RUN useradd --create-home --uid 1000 tts \
+    && mkdir -p /data/voices \
+    && chown -R tts:tts /data /app
+USER tts
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:8000/healthz || exit 1
+
+CMD ["python", "-m", "piper_tts_server"]

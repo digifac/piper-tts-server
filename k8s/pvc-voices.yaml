@@ -1,0 +1,19 @@
+# PersistentVolumeClaim for caching downloaded Piper voice models.
+# Mounted at /data/voices in both the CPU and GPU deployments so that voices are
+# not re-downloaded on pod restart or rescheduling.
+#
+# NOTE: no `storageClassName` is set, so this uses the cluster's default StorageClass
+# (commonly `local-path`). If your cluster has a different default, or you want a
+# specific provisioner, add an explicit `storageClassName:` here.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: piper-tts-voices
+spec:
+  accessModes:
+    - ReadWriteOnce # single-node; use ReadWriteMany if your storage supports it and you scale >1 replica
+  resources:
+    requests:
+      # ~500Mi covers a handful of "medium"/"high" quality voices (tens to low hundreds of MB each).
+      # Raise up to ~2Gi if you cache many voices.
+      storage: 500Mi
