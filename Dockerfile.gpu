@@ -1,31 +1,61 @@
 # syntax=docker/dockerfile:1
 # GPU image for piper-tts-server.
-# Inference runs on ONNX Runtime (CUDA) via the `onnxruntime-gpu` package, which
-# is added by the project's `[gpu]` extra. cuDNN / cuBLAS are provided as pip
-# wheels (nvidia-cudnn-cu12 etc.) so no system-wide CUDA toolkit install is needed;
-# only the host NVIDIA driver + nvidia-container-toolkit are required at runtime.
+# Inference runs on ONNX Runtime (CUDA) via the `onnxruntime-gpu` package, which is
+# added by the project's `[gpu]` extra and pinned to 1.21.1 below — that is the last
+# release whose CUDA provider is built against CUDA 12 (it hard-links libcublasLt.so.12,
+# libcudart.so.12, libnvrtc.so.12, ...). Newer onnxruntime-gpu releases target CUDA 13
+# and would silently fall back to CPU inside a cu12 image.
+#
+# The base image ships the full CUDA 12 runtime + cuDNN system-wide (cuBLAS included),
+# so only the host NVIDIA driver + nvidia-container-toolkit are required on the host at runtime.
 
-FROM python:3.12-slim AS base
+FROM nvidia/cuda:12.9.2-cudnn-runtime-ubuntu22.04 AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     TTS_VOICE_CACHE_DIR=/data/voices \
-    # onnxruntime-gpu loads cuDNN/cuBLAS from the nvidia pip wheels; make sure the
-    # loader can find them without requiring a system CUDA install.
-    LD_LIBRARY_PATH=/usr/local/lib/python3.12/site-packages/nvidia/cudnn/lib:/usr/local/lib/python3.12/site-packages/nvidia/cublas/lib:/usr/local/lib/python3.12/site-packages/nvidia/cuda_nvrtc/lib
+    # The CUDA provider of onnxruntime-gpu 1.21.1 hard-links a few libraries that are NOT
+    # bundled in the base image (cuRAND, cuFFT, NVRTC). Those are installed as pip wheels into
+    # dist-packages/nvidia/*/lib; point LD_LIBRARY_PATH there so the native loader finds them.
+    LD_LIBRARY_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/curand/lib:/usr/local/lib/python3.10/dist-packages/nvidia/cufft/lib:/usr/local/lib/python3.10/dist-packages/nvidia/cuda_nvrtc/lib
 
 # espeak-ng is required by Piper for phonemization; libgomp for OpenMP kernels.
+# python3-pip provides the Python 3.10 interpreter + pip (Ubuntu 22.04 default);
+# onnxruntime-gpu 1.21.1 ships a cp310 manylinux wheel so no extra PPA is needed.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libespeak-ng1 libgomp1 curl \
+    && apt-get install -y --no-install-recommends libespeak-ng1 libgomp1 curl python3-pip \
+    && ln -sf /usr/bin/python3 /usr/local/bin/python \
     && rm -rf /var/lib/apt/lists/*
+
+# Ubuntu 22.04 ships setuptools 59.x which does not support PEP 621 pyproject.toml;
+# upgrade it so `pip install .` resolves the project name and metadata correctly.
+RUN pip install --no-cache-dir --upgrade "setuptools>=68" wheel
 
 WORKDIR /app
 
-# Install the project with the GPU extra (onnxruntime-gpu) plus cuDNN/cuBLAS wheels.
+# Install the project with the GPU extra, pinned to onnxruntime-gpu 1.21.1 (CUDA 12 build),
+# plus the cu12 pip wheels for the libraries not present in the base image:
+#   - nvidia-curand-cu12     -> libcurand.so.10
+#   - nvidia-cufft-cu12      -> libcufft.so.11
+#   - nvidia-cuda-nvrtc-cu12 -> libnvrtc.so.12
+# cuBLAS, cuDNN and the CUDA runtime are already provided system-wide by the base image.
+# piper-tts pulls in onnxruntime (CPU) as a dependency; both packages share the same import
+# path and conflict. Remove the CPU build, then force-reinstall onnxruntime-gpu so its files
+# are restored cleanly and CUDAExecutionProvider is available at runtime.
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN pip install --no-cache-dir ".[gpu]" nvidia-cudnn-cu12
+# Install the project (non-editable) with the GPU extra pinned to onnxruntime-gpu 1.21.1,
+# plus the cu12 pip wheels for libs not in the base image (cuRAND, cuFFT, NVRTC).
+# Clean build artifacts first so pip does a fresh non-editable install into dist-packages.
+RUN rm -rf /app/build /app/*.egg-info \
+    && pip install --no-cache-dir --no-build-isolation ".[gpu]" \
+        "onnxruntime-gpu==1.21.1" \
+        nvidia-curand-cu12 nvidia-cufft-cu12 nvidia-cuda-nvrtc-cu12 \
+    && ORT_GPU_VER=$(pip show onnxruntime-gpu | awk '/^Version/{print $2}') \
+    && pip uninstall -y onnxruntime \
+    && pip install --force-reinstall --no-deps "onnxruntime-gpu==${ORT_GPU_VER}" \
+    && rm -rf /app/build /app/*.egg-info
 
 # Run as a non-root user; give it ownership of the voice cache dir.
 RUN useradd --create-home --uid 1000 tts \
