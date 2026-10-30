@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import struct
-import wave
 from collections.abc import Generator, Iterator
 from dataclasses import dataclass
 

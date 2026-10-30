@@ -169,7 +169,7 @@ def create_app(context: AppContext | None = None) -> FastAPI:
         # errors surface before any response bytes are sent.
         try:
             wav_bytes = await asyncio.to_thread(ctx.synthesis.synthesize_wav_bytes, voice, body.input)
-        except Exception as exc:  # noqa: BLE001 - synthesis failures map to a clean HTTP error
+        except Exception as exc:  # synthesis failures map to a clean HTTP error
             logger.exception("Synthesis failed for voice %r", voice_name)
             REQUESTS_TOTAL.labels("/v1/audio/speech", "500").inc()
             raise HTTPException(status_code=500, detail=f"Synthesis failed: {exc}") from exc

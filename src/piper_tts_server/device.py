@@ -38,12 +38,13 @@ def _query_compute_capability() -> tuple[int, int] | None:
         return None
 
     try:
-        result = subprocess.run(  # noqa: S603 - fixed args, no user input
+        result = subprocess.run(
             [
                 "nvidia-smi",
                 "--query-gpu=compute_cap",
                 "--format=csv,noheader,nounits",
             ],
+            check=False,  # fixed args, no user input; non-zero handled below
             capture_output=True,
             text=True,
             timeout=5,
