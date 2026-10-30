@@ -94,7 +94,10 @@ def create_app(context: AppContext | None = None) -> FastAPI:
     # ------------------------------------------------------------------- voices
 
     @app.get("/v1/audio/voices")
-    async def list_voices(refresh: bool = Query(default=False)) -> JSONResponse:
+    async def list_voices(
+        refresh: bool = Query(default=False),
+        format: Literal["openai", "simple"] = Query(default="simple"),
+    ) -> JSONResponse:
         """List available Piper voices (discovered from HuggingFace, TTL-cached)."""
         started = time.perf_counter()
         try:
@@ -116,9 +119,17 @@ def create_app(context: AppContext | None = None) -> FastAPI:
             }
             for v in voices
         ]
+
+        # llama-swap's speech playground only understands a plain array of voice-id
+        # strings or an object with a top-level `voices` key (see its getVoiceIds).
+        # The OpenAI list wrapper is kept available via ?format=openai.
         REQUESTS_TOTAL.labels("/v1/audio/voices", "200").inc()
         logger.debug("Listed %d voices in %.3fs.", len(payload), time.perf_counter() - started)
-        return JSONResponse({"object": "list", "data": payload, "has_more": False})
+
+        if format == "openai":
+            return JSONResponse({"object": "list", "data": payload, "has_more": False})
+        # Default: plain array of voice ids — the shape llama-swap's playground parses.
+        return JSONResponse([v["id"] for v in payload])
 
     # ------------------------------------------------------------------- speech
 

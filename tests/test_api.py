@@ -75,9 +75,20 @@ def test_healthz() -> None:
     assert resp.json() == {"status": "ok"}
 
 
-def test_list_voices_shape() -> None:
+def test_list_voices_default_simple_shape() -> None:
     client, _ = _make_client()
     resp = client.get("/v1/audio/voices")
+    assert resp.status_code == 200
+    # Default is a plain array of voice ids (the shape llama-swap's playground parses).
+    body = resp.json()
+    assert isinstance(body, list)
+    assert "en_US-lessac-medium" in body
+    assert "ar_JO-kareem-low" in body
+
+
+def test_list_voices_openai_shape() -> None:
+    client, _ = _make_client()
+    resp = client.get("/v1/audio/voices", params={"format": "openai"})
     assert resp.status_code == 200
     body = resp.json()
     # OpenAI list wrapper.
