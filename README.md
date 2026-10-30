@@ -11,23 +11,13 @@ A low-latency text-to-speech server based on [Piper](https://github.com/OHF-Voic
 ## Features
 
 - OpenAI-compatible HTTP API for speech synthesis and voice listing — works with the official OpenAI SDKs as well as plain `curl`.
-- **CPU inference** via ONNX Runtime, automatically leveraging AVX/AVX2 when available on the host. The device can be forced explicitly with an environment variable.
+- **CPU inference** via ONNX Runtime, automatically leveraging AVX/AVX2 when available on the host.
 - Low time-to-first-byte: `/v1/audio/speech` streams WAV frames back as synthesis progresses (`StreamingResponse`).
 - Automatic voice model downloads with on-disk caching, plus an in-memory LRU of loaded models so the most-recently-used voices stay hot.
 - HuggingFace-based discovery of available voices, exposed through the `/v1/audio/voices` endpoint (TTL-cached).
 - Health check (`/healthz`) and Prometheus-compatible metrics (`/metrics`).
 
-## Inference device
-
-The server runs inference on the CPU via ONNX Runtime, automatically leveraging AVX/AVX2 when available on the host. The device can be forced explicitly:
-
-| `TTS_DEVICE` | Behavior |
-|--------------|----------|
-| `auto` (default) | Use CUDA if a CUDA ONNX Runtime provider is available, otherwise CPU. |
-| `cpu`            | Force CPU inference. |
-| `cuda`           | Require CUDA; falls back to CPU with a warning if no GPU runtime is present. |
-
-CPU mode works on all hardware and is perfectly usable for moderate workloads — see [Configuration](#configuration) to force it explicitly.
+Inference runs entirely on the **CPU** via ONNX Runtime, automatically leveraging AVX/AVX2 when available on the host. CPU mode works on all hardware and is perfectly usable for moderate workloads.
 
 ## Installation
 
@@ -142,7 +132,7 @@ Configuration is read from environment variables (prefix `TTS_`) or a `.env` fil
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `TTS_DEVICE`        | `auto`  | Inference device: `auto`, `cpu`, or `cuda`. |
+| `TTS_DEVICE`        | `cpu`   | Inference device: `auto`, `cpu`, or `cuda`. Only CPU is used by the distributed image; CUDA requires a local install with a GPU runtime. |
 | `TTS_VOICE_CACHE_DIR` | `./voices` | Directory where voice models are downloaded and cached. Mount a volume/PVC here in production. |
 | `TTS_MAX_LOADED_VOICES` | `4`   | Size of the in-memory LRU cache of loaded voice models. |
 | `TTS_HOST`          | `0.0.0.0` | Bind host for the HTTP server. |
@@ -164,7 +154,7 @@ Configuration is read from environment variables (prefix `TTS_`) or a `.env` fil
 ```bash
 pip install -e ".[dev]"
 ruff check .     # lint
-pytest -q        # tests (CPU path; onnxruntime-gpu is not required)
+pytest -q
 ```
 
 ## License
