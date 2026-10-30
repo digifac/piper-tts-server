@@ -31,11 +31,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Derive the version from the tag (strip leading "v"). v0.1.0 -> 0.1.0
-      - name: Extract version
+      - name: Extract version and owner
         id: ver
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          OWNER="${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]'
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "owner=$OWNER" >> "$GITHUB_OUTPUT"
 
       # Single GHCR package, suffixed tags (Option A):
       #   cpu -> piper-tts-server:{VERSION} + :latest
@@ -50,8 +52,8 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.variant }}
           cache-to: type=gha,scope=${{ matrix.variant }},mode=max
           tags: |
-            ghcr.io/${{ github.repository_owner | lowercase }}/piper-tts-server:${{ steps.ver.outputs.version }}${{ matrix.variant == 'gpu' && '-gpu' || '' }}
-            ghcr.io/${{ github.repository_owner | lowercase }}/piper-tts-server:latest${{ matrix.variant == 'gpu' && '-gpu' || '' }}
+            ghcr.io/${{ steps.ver.outputs.owner }}/piper-tts-server:${{ steps.ver.outputs.version }}${{ matrix.variant == 'gpu' && '-gpu' || '' }}
+            ghcr.io/${{ steps.ver.outputs.owner }}/piper-tts-server:latest${{ matrix.variant == 'gpu' && '-gpu' || '' }}
 
   release:
     name: Create GitHub Release
