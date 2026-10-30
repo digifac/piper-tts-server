@@ -137,7 +137,6 @@ Configuration is read from environment variables (prefix `TTS_`) or a `.env` fil
 | `TTS_MAX_LOADED_VOICES` | `4`   | Size of the in-memory LRU cache of loaded voice models. |
 | `TTS_HOST`          | `0.0.0.0` | Bind host for the HTTP server. |
 | `TTS_PORT`          | `8000`  | Bind port for the HTTP server. |
-| `TTS_HF_TOKEN`      | *(unset)* | Optional HuggingFace token for gated/private voice repositories. |
 | `TTS_VOICES_LIST_TTL_SECONDS` | `3600` | How long to cache the `/v1/audio/voices` listing before re-querying HuggingFace. |
 
 ## API reference

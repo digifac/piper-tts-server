@@ -31,13 +31,6 @@ spec:
               value: "/data/voices"
             - name: TTS_MAX_LOADED_VOICES
               value: "4"
-            # Optional HuggingFace token for gated/private voice repos.
-            # Uncomment and reference a Secret if needed:
-            # - name: TTS_HF_TOKEN
-            #   valueFrom:
-            #     secretKeyRef:
-            #       name: piper-tts-secret
-            #       key: hf_token
           volumeMounts:
             - name: voices
               mountPath: /data/voices

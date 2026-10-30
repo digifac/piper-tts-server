@@ -73,7 +73,7 @@ class VoiceManager:
         try:
             from huggingface_hub import HfApi
 
-            api = HfApi(token=self._settings.hf_token or None)
+            api = HfApi()
             entries = api.list_repo_tree(VOICES_REPO_ID, repo_type="model", recursive=True)
         except (OSError, ValueError) as exc:
             logger.warning("HuggingFace voice discovery failed (%s); returning empty list.", exc)
@@ -127,14 +127,7 @@ class VoiceManager:
         logger.info("Downloading voice %r to %s.", name, self._cache_dir)
         # Use the current interpreter so piper is importable (works in venvs and Docker).
         cmd = [sys.executable, "-m", "piper.download_voices", name, "--data-dir", str(self._cache_dir)]
-        if self._settings.hf_token:
-            # Pass the token via env so it is not visible in process listings.
-            import os
-
-            env = {**os.environ, "HF_TOKEN": self._settings.hf_token}
-            subprocess.run(cmd, check=True, env=env)
-        else:
-            subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True)
 
         if not onnx_path.exists():
             raise FileNotFoundError(f"Voice download for {name!r} did not produce {onnx_path}")

@@ -34,9 +34,6 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
-    # Optional HuggingFace token, used only if a voice repo requires auth.
-    hf_token: str | None = None
-
     # TTL (seconds) for the cached voice listing fetched from HuggingFace.
     voices_list_ttl_seconds: float = 3600.0
 

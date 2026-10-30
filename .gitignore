@@ -4,7 +4,7 @@ voices/
 *.onnx
 *.onnx.data
 
-# Local environment file (secrets such as TTS_HF_TOKEN).
+# Local environment file.
 .env
 
 # Byte-compiled / optimized / DLL files

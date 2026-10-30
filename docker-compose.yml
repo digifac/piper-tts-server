@@ -15,8 +15,6 @@ services:
       TTS_DEVICE: cpu
       TTS_VOICE_CACHE_DIR: /data/voices
       TTS_MAX_LOADED_VOICES: ${TTS_MAX_LOADED_VOICES:-4}
-      # Optional HuggingFace token for gated/private voice repos.
-      TTS_HF_TOKEN: ${HF_TOKEN:-}
     volumes:
       - voices:/data/voices
     restart: unless-stopped
