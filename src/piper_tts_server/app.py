@@ -125,8 +125,18 @@ def create_app(context: AppContext | None = None) -> FastAPI:
 
         if format == "openai":
             return JSONResponse({"object": "list", "data": payload, "has_more": False})
-        # Default: {"voices": [names...]} — the shape llama-swap's playground parses.
-        return JSONResponse({"voices": [v["id"] for v in payload]})
+
+        # Default: OpenAI list wrapper + top-level `voices` array of names.
+        # llama-swap's speech playground reads the `voices` key (see getVoiceIds);
+        # OpenAI-compatible clients read `data`.
+        return JSONResponse(
+            {
+                "object": "list",
+                "data": payload,
+                "has_more": False,
+                "voices": [v["id"] for v in payload],
+            }
+        )
 
     # ------------------------------------------------------------------- speech
 
