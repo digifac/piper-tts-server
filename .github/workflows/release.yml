@@ -11,12 +11,8 @@ permissions:
 
 jobs:
   build-push:
-    name: Build & push ${{ matrix.variant }} image (amd64)
+    name: Build & push image (amd64)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        variant: [cpu]
     steps:
       - uses: actions/checkout@v4
 
@@ -39,17 +35,16 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "owner=$OWNER" >> "$GITHUB_OUTPUT"
 
-      # Single GHCR package, suffixed tags (Option A):
-      #   cpu -> piper-tts-server:{VERSION} + :latest
-      - name: Build & push ${{ matrix.variant }} image
+      # Single GHCR package with versioned + latest tags.
+      - name: Build & push image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.${{ matrix.variant }}
+          file: Dockerfile
           platforms: linux/amd64 # amd64 only for now (no QEMU needed)
           push: true
-          cache-from: type=gha,scope=${{ matrix.variant }}
-          cache-to: type=gha,scope=${{ matrix.variant }},mode=max
+          cache-from: type=gha,scope=image
+          cache-to: type=gha,scope=image,mode=max
           tags: |
             ghcr.io/${{ steps.ver.outputs.owner }}/piper-tts-server:${{ steps.ver.outputs.version }}
             ghcr.io/${{ steps.ver.outputs.owner }}/piper-tts-server:latest
@@ -72,11 +67,11 @@ jobs:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
           body: |
-            ## Images Docker (GHCR)
+            ## Image Docker (GHCR)
 
-            | Variante | Tag image GHCR | Pull |
-            |---|---|---|
-            | CPU  | `${{ steps.ver.outputs.version }}`     | `docker pull ghcr.io/digifac/piper-tts-server:${{ steps.ver.outputs.version }}` |
+            | Tag image GHCR | Pull |
+            |---|---|
+            | `${{ steps.ver.outputs.version }}`     | `docker pull ghcr.io/digifac/piper-tts-server:${{ steps.ver.outputs.version }}` |
 
             > L'image est aussi disponible sous le tag `latest`.
             > Architecture : amd64 uniquement pour l'instant.

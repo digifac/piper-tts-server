@@ -19,7 +19,6 @@ from prometheus_client import (
 from pydantic import BaseModel, Field
 
 from .config import Settings, get_settings
-from .device import DeviceResolver
 from .synthesis import SynthesisService
 from .voices import VoiceManager
 
@@ -57,8 +56,7 @@ class AppContext:
 
     def __init__(self) -> None:
         self.settings: Settings = get_settings()
-        self.device_resolver = DeviceResolver(self.settings)
-        self.voice_manager = VoiceManager(self.settings, self.device_resolver)
+        self.voice_manager = VoiceManager(self.settings)
         self.synthesis = SynthesisService()
 
 
@@ -68,10 +66,8 @@ def create_app(context: AppContext | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        device = ctx.device_resolver.resolve() if ctx.device_resolver else "cpu"
         logger.info(
-            "piper-tts-server starting (device=%s, voice_cache_dir=%s, max_loaded_voices=%d)",
-            device,
+            "piper-tts-server starting (voice_cache_dir=%s, max_loaded_voices=%d)",
             ctx.settings.voice_cache_dir,
             ctx.settings.max_loaded_voices,
         )

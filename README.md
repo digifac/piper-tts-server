@@ -64,13 +64,13 @@ docker run --rm -p 8000:8000 ghcr.io/digifac/piper-tts-server:0.1.0
 You can also build locally from source (useful when hacking on the Dockerfile):
 
 ```bash
-docker build -f Dockerfile.cpu -t piper-tts-server:cpu .
+docker build -t piper-tts-server .
 ```
 
-Or use Compose (the `cpu` profile references a locally-built image):
+Or use Compose:
 
 ```bash
-docker compose up cpu                 # CPU inference
+docker compose up
 ```
 
 ### Kubernetes
@@ -79,7 +79,7 @@ Manifests live in [`k8s/`](./k8s). The voice cache is backed by a PersistentVolu
 
 ```bash
 kubectl apply -f k8s/pvc-voices.yaml
-kubectl apply -f k8s/deployment-cpu.yaml -f k8s/service.yaml
+kubectl apply -f k8s/deployment.yaml -f k8s/service.yaml
 ```
 
 > **PVC note:** `k8s/pvc-voices.yaml` requests 500Mi and sets no explicit `storageClassName`, so it uses your cluster's default StorageClass (commonly `local-path`). Set an explicit `storageClassName:` if you need a specific provisioner, and raise the request up to ~2Gi if you cache many voices.
@@ -132,7 +132,6 @@ Configuration is read from environment variables (prefix `TTS_`) or a `.env` fil
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `TTS_DEVICE`        | `cpu`   | Inference device: `auto`, `cpu`, or `cuda`. Only CPU is used by the distributed image; CUDA requires a local install with a GPU runtime. |
 | `TTS_VOICE_CACHE_DIR` | `./voices` | Directory where voice models are downloaded and cached. Mount a volume/PVC here in production. |
 | `TTS_MAX_LOADED_VOICES` | `4`   | Size of the in-memory LRU cache of loaded voice models. |
 | `TTS_HOST`          | `0.0.0.0` | Bind host for the HTTP server. |

@@ -1,32 +1,27 @@
-# CPU deployment for piper-tts-server.
+# Deployment for piper-tts-server.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: piper-tts-cpu
+  name: piper-tts
   labels:
     app: piper-tts
-    variant: cpu
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: piper-tts
-      variant: cpu
   template:
     metadata:
       labels:
         app: piper-tts
-        variant: cpu
     spec:
       containers:
         - name: tts
-          image: piper-tts-server:cpu # replace with your registry path, e.g. ghcr.io/<you>/piper-tts-server:cpu
+          image: piper-tts-server # replace with your registry path, e.g. ghcr.io/<you>/piper-tts-server
           ports:
             - containerPort: 8000
               name: http
           env:
-            - name: TTS_DEVICE
-              value: "cpu"
             - name: TTS_VOICE_CACHE_DIR
               value: "/data/voices"
             - name: TTS_MAX_LOADED_VOICES

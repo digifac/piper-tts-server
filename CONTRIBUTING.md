@@ -32,7 +32,7 @@ pytest -q        # test suite (CPU path; onnxruntime-gpu is not required)
 ```
 
 - **Ruff** handles linting. Keep the codebase free of new warnings.
-- **Pytest** covers the device-selection logic and the HTTP API. Tests run against the CPU inference path, so no GPU or `onnxruntime-gpu` install is needed to contribute.
+- **Pytest** covers the voice management and the HTTP API. Tests run against the CPU inference path, so no GPU or `onnxruntime-gpu` install is needed to contribute.
 
 ## Submitting changes
 

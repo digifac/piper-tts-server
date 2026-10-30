@@ -31,15 +31,11 @@ jobs:
       - name: Run tests (pytest)
         run: pytest -q
 
-  build-images:
-    name: Build Docker images (${{ matrix.variant }})
+  build-image:
+    name: Build Docker image
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        variant: [cpu]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build ${{ matrix.variant }} image
-        run: docker build -f Dockerfile.${{ matrix.variant }} -t piper-tts-server:${{ matrix.variant }} .
+      - name: Build image
+        run: docker build -t piper-tts-server .

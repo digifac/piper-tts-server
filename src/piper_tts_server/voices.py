@@ -13,7 +13,6 @@ from pathlib import Path
 from piper import PiperVoice
 
 from .config import Settings
-from .device import DeviceResolver
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +37,8 @@ class VoiceManager:
       ``settings.max_loaded_voices``), thread-safe via a lock.
     """
 
-    def __init__(self, settings: Settings, device_resolver: DeviceResolver) -> None:
+    def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._device = device_resolver
         self._cache_dir = Path(settings.voice_cache_dir)
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -106,9 +104,8 @@ class VoiceManager:
                 return voice
 
         path = self._ensure_on_disk(name)
-        use_cuda = self._device.use_cuda
-        logger.info("Loading voice %r (device=%s).", name, "cuda" if use_cuda else "cpu")
-        loaded = PiperVoice.load(str(path), use_cuda=use_cuda)
+        logger.info("Loading voice %r.", name)
+        loaded = PiperVoice.load(str(path))
 
         with self._lock:
             self._models[name] = loaded

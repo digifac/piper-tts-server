@@ -41,11 +41,10 @@ class FakeVoice:
 
 
 def _make_client() -> tuple[TestClient, AppContext]:
-    ctx = AppContext.__new__(AppContext)  # bypass __init__ (no settings/device/manager construction)
+    ctx = AppContext.__new__(AppContext)  # bypass __init__ (no settings/manager construction)
     from piper_tts_server.config import Settings
 
     ctx.settings = Settings(voice_cache_dir="./voices")
-    ctx.device_resolver = None  # type: ignore[assignment]
     ctx.voice_manager = _FakeVoiceManager()
     from piper_tts_server.synthesis import SynthesisService
 

@@ -1,18 +1,14 @@
 # piper-tts-server — Docker Compose.
-# A single `cpu` profile is provided for CPU inference.
-#   docker compose up cpu          # CPU inference
 
 services:
-  tts-cpu:
-    image: piper-tts-server:cpu
+  tts:
+    image: piper-tts-server
     build:
       context: .
-      dockerfile: Dockerfile.cpu
-    profiles: ["cpu"]
+      dockerfile: Dockerfile
     ports:
       - "${TTS_PORT:-8000}:8000"
     environment:
-      TTS_DEVICE: cpu
       TTS_VOICE_CACHE_DIR: /data/voices
       TTS_MAX_LOADED_VOICES: ${TTS_MAX_LOADED_VOICES:-4}
     volumes:
