@@ -120,8 +120,12 @@ kubectl apply -f k8s/deployment-gpu.yaml -f k8s/service.yaml
 
 ```bash
 curl http://localhost:8000/v1/audio/voices
-# -> {"data": [{"name": "en_US-lessac-medium", "language": "en-US", "quality": "medium"}, ...]}
+# -> {"object": "list", "has_more": false, "data": [
+#      {"id": "en_US-lessac-medium", "name": "en_US-lessac-medium", "object": "audio.voice",
+#       "created_at": 0, "language": "en_US", "quality": "medium"}, ...]}
 ```
+
+The response follows the OpenAI `Voice` schema (`id`, `object: "audio.voice"`, `created_at`) and adds Piper-specific extras (`language` as a bare `xx_YY` code, `quality`).
 
 ### Synthesize speech (streaming WAV)
 

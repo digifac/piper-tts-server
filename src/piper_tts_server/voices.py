@@ -83,11 +83,12 @@ class VoiceManager:
         for entry in entries:
             if not str(entry.path).endswith(".onnx"):
                 continue
+            # Piper voice names follow the pattern ``xx_YY-voice-quality`` where
+            # the language code itself contains a dash (e.g. "ar_JO-kareem-low").
             name = Path(str(entry.path)).stem  # e.g. "en_US-lessac-medium"
-            parts = name.split("-")
-            language = "-".join(parts[:2]) if len(parts) >= 3 else name
-            quality = parts[-1] if len(parts) >= 3 else ""
-            voices[name] = VoiceInfo(name=name, language=language, quality=quality)
+            prefix, _, quality = name.rpartition("-")  # ("en_US-lessac", "", "medium")
+            lang_code, _, _speaker = prefix.partition("-")  # ("en_US", "-", "lessac")
+            voices[name] = VoiceInfo(name=name, language=lang_code, quality=quality)
 
         logger.info("Discovered %d voices on HuggingFace.", len(voices))
         return sorted(voices.values(), key=lambda v: v.name)

@@ -58,8 +58,8 @@ class _FakeVoiceManager:
         from piper_tts_server.voices import VoiceInfo
 
         return [
-            VoiceInfo(name="en_US-lessac-medium", language="en-US", quality="medium"),
-            VoiceInfo(name="fr_FR-upmc-medium", language="fr-FR", quality="medium"),
+            VoiceInfo(name="en_US-lessac-medium", language="en_US", quality="medium"),
+            VoiceInfo(name="ar_JO-kareem-low", language="ar_JO", quality="low"),
         ]
 
     def get_voice(self, name: str):
@@ -80,12 +80,22 @@ def test_list_voices_shape() -> None:
     resp = client.get("/v1/audio/voices")
     assert resp.status_code == 200
     body = resp.json()
-    assert set(body) == {"data"}
+    # OpenAI list wrapper.
+    assert set(body) == {"object", "data", "has_more"}
+    assert body["object"] == "list"
+    assert body["has_more"] is False
+
     names = {v["name"] for v in body["data"]}
     assert "en_US-lessac-medium" in names
-    entry = next(v for v in body["data"] if v["name"] == "fr_FR-upmc-medium")
-    assert entry["language"] == "fr-FR"
-    assert entry["quality"] == "medium"
+
+    entry = next(v for v in body["data"] if v["name"] == "ar_JO-kareem-low")
+    # OpenAI Voice fields.
+    assert entry["id"] == "ar_JO-kareem-low"
+    assert entry["object"] == "audio.voice"
+    assert entry["created_at"] == 0
+    # Piper extras; language must be the bare xx_YY code (no speaker name).
+    assert entry["language"] == "ar_JO"
+    assert entry["quality"] == "low"
 
 
 def test_speech_streams_valid_wav() -> None:

@@ -104,12 +104,21 @@ def create_app(context: AppContext | None = None) -> FastAPI:
             REQUESTS_TOTAL.labels("/v1/audio/voices", "500").inc()
             raise HTTPException(status_code=500, detail=f"Voice listing failed: {exc}") from exc
 
+        # OpenAI-compatible Voice objects (id, object, created_at) plus Piper extras.
         payload = [
-            {"name": v.name, "language": v.language, "quality": v.quality} for v in voices
+            {
+                "id": v.name,
+                "name": v.name,
+                "object": "audio.voice",
+                "created_at": 0,
+                "language": v.language,
+                "quality": v.quality,
+            }
+            for v in voices
         ]
         REQUESTS_TOTAL.labels("/v1/audio/voices", "200").inc()
         logger.debug("Listed %d voices in %.3fs.", len(payload), time.perf_counter() - started)
-        return JSONResponse({"data": payload})
+        return JSONResponse({"object": "list", "data": payload, "has_more": False})
 
     # ------------------------------------------------------------------- speech
 
