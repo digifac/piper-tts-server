@@ -35,7 +35,7 @@ jobs:
         id: ver
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          OWNER="${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]'
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "owner=$OWNER" >> "$GITHUB_OUTPUT"
 
