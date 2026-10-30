@@ -72,13 +72,50 @@ class SynthesisService:
         # with synthesize_wav_bytes() when total size is known.
 
     def synthesize_wav_bytes(self, voice, text: str) -> bytes:
-        """Return the full WAV file as a single ``bytes`` object (non-streaming)."""
-        import io
+        """Return the full WAV file as a single ``bytes`` object (non-streaming).
 
-        buf = io.BytesIO()
-        with wave.open(buf, "wb") as wav_file:
-            voice.synthesize_wav(text, wav_file)
-        return buf.getvalue()
+        Builds the file from Piper's chunks so the RIFF/data sizes are always
+        correct. Raises :class:`RuntimeError` when no audio is produced or when
+        the resulting duration is suspiciously short (< 0.1 s), which typically
+        indicates a GPU memory issue or an empty phonemization result.
+        """
+        pcm_parts: list[bytes] = []
+        fmt: AudioFormat | None = None
+
+        for chunk in voice.synthesize(text):
+            if fmt is None:
+                fmt = AudioFormat(
+                    sample_rate=chunk.sample_rate,
+                    sample_width=chunk.sample_width,
+                    channels=chunk.sample_channels,
+                )
+            pcm: bytes = chunk.audio_int16_bytes
+            if pcm:
+                pcm_parts.append(pcm)
+
+        if fmt is None or not pcm_parts:
+            raise RuntimeError("Synthesis produced no audio.")
+
+        data = b"".join(pcm_parts)
+        
+        # Diagnostic logging
+        duration_seconds = len(data) / (fmt.sample_rate * fmt.channels * fmt.sample_width)
+        logger.info(
+            "Synthesized %d chunks, %d bytes PCM (%.2fs at %d Hz)",
+            len(pcm_parts),
+            len(data),
+            duration_seconds,
+            fmt.sample_rate,
+        )
+
+        # Sanity check: reject suspiciously short audio (likely GPU OOM or empty phonemization)
+        if duration_seconds < 0.1:
+            raise RuntimeError(
+                f"Synthesis produced abnormally short audio ({duration_seconds:.3f}s). "
+                "This may indicate a GPU memory issue or an empty input."
+            )
+
+        return _wav_header(fmt, len(data)) + data
 
 
 def iter_chunks(voice, text: str) -> Iterator[object]:  # pragma: no cover - trivial passthrough

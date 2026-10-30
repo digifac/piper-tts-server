@@ -5,12 +5,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     Counter,
@@ -43,11 +42,12 @@ SYNTHESIS_DURATION = Histogram(
 class SpeechRequest(BaseModel):
     """OpenAI-compatible ``/v1/audio/speech`` request body."""
 
-    model: str = Field(..., description="Voice name, e.g. 'en_US-lessac-medium'.")
+    model: str | None = Field(default=None, description="Ignored when 'voice' is provided.")
     input: str = Field(..., min_length=1, description="Text to synthesize.")
-    voice: Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"] | None = Field(
+    # The Piper voice id (e.g. "fr_FR-tom-medium"). When omitted, `model` is used.
+    voice: str | None = Field(
         default=None,
-        description="OpenAI voice field; ignored in favor of 'model' (voice name).",
+        description="Piper voice id, e.g. 'en_US-lessac-medium'. Takes precedence over 'model'.",
     )
     response_format: str = Field(default="wav")
 
@@ -148,7 +148,10 @@ def create_app(context: AppContext | None = None) -> FastAPI:
                 status_code=400, detail=f"Unsupported response_format {body.response_format!r}; only 'wav' is supported."
             )
 
-        voice_name = body.model
+        # `voice` carries the Piper voice id; when omitted, fall back to `model`.
+        voice_name = body.voice or body.model
+        if not voice_name:
+            raise HTTPException(status_code=400, detail="Either 'voice' or 'model' must be provided.")
 
         # Load (or download) the model off the event loop.
         try:
@@ -161,67 +164,19 @@ def create_app(context: AppContext | None = None) -> FastAPI:
             REQUESTS_TOTAL.labels("/v1/audio/speech", "500").inc()
             raise HTTPException(status_code=500, detail=f"Voice loading failed: {exc}") from exc
 
-        # Run the blocking Piper synthesis in a worker thread and bridge chunks.
-        loop = asyncio.get_running_loop()
-        queue: asyncio.Queue[bytes | str | None] = asyncio.Queue(maxsize=8)
-
-        def producer() -> None:
-            try:
-                for frame in ctx.synthesis.synthesize_stream(voice, body.input):
-                    # Put from a worker thread must be thread-safe.
-                    loop.call_soon_threadsafe(queue.put_nowait, frame)
-            except Exception as exc:  # pragma: no cover - defensive
-                logger.exception("Synthesis failed for voice %r", voice_name)
-                loop.call_soon_threadsafe(queue.put_nowait, f"__error__:{exc}")
-            finally:
-                loop.call_soon_threadsafe(queue.put_nowait, None)
-
-        producer_task = loop.run_in_executor(None, producer)
-
-        # Drain the queue until the first frame (the WAV header) or an error.
-        # Errors raised here happen before any response bytes are sent, so a
-        # clean HTTP status code can still be returned to the client.
-        first_frame: bytes | None = None
-        while True:
-            item = await queue.get()
-            if item is None:  # empty stream (no audio produced)
-                REQUESTS_TOTAL.labels("/v1/audio/speech", "500").inc()
-                raise HTTPException(status_code=500, detail="Synthesis produced no audio.") from None
-            if isinstance(item, str) and item.startswith("__error__:"):
-                REQUESTS_TOTAL.labels("/v1/audio/speech", "500").inc()
-                raise HTTPException(
-                    status_code=500, detail=item[len("__error__:"):]
-                ) from None
-            first_frame = item  # WAV header; remaining frames follow in the queue
-            break
-
-        async def audio_stream() -> AsyncIterator[bytes]:
-            assert first_frame is not None
-            yield first_frame
-            while True:
-                next_item = await queue.get()
-                if next_item is None:
-                    break
-                if isinstance(next_item, str) and next_item.startswith("__error__:"):
-                    # Response already started; log only. The client receives a
-                    # truncated WAV (zero data size), which players reject cleanly.
-                    logger.error(
-                        "Synthesis failed mid-stream for voice %r: %s",
-                        voice_name,
-                        next_item[len("__error__:") :],
-                    )
-                    break
-                yield next_item  # type: ignore[misc] - bytes at this point
-
-            # Ensure the executor task has completed before returning.
-            try:
-                await producer_task
-            except Exception as exc:  # noqa: BLE001 - intentional broad catch; errors already surfaced via queue
-                logger.debug("Producer task finished with error: %s", exc)
+        # Run the blocking Piper synthesis in a worker thread. The full WAV is
+        # buffered there so the response always carries correct RIFF/data sizes;
+        # errors surface before any response bytes are sent.
+        try:
+            wav_bytes = await asyncio.to_thread(ctx.synthesis.synthesize_wav_bytes, voice, body.input)
+        except Exception as exc:  # noqa: BLE001 - synthesis failures map to a clean HTTP error
+            logger.exception("Synthesis failed for voice %r", voice_name)
+            REQUESTS_TOTAL.labels("/v1/audio/speech", "500").inc()
+            raise HTTPException(status_code=500, detail=f"Synthesis failed: {exc}") from exc
 
         REQUESTS_TOTAL.labels("/v1/audio/speech", "200").inc()
-        return StreamingResponse(
-            audio_stream(),
+        return Response(
+            content=wav_bytes,
             media_type="audio/wav",
             headers={"X-Voice": voice_name},
         )

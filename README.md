@@ -30,6 +30,19 @@ The server picks its inference device at startup:
 - **CPU** uses the plain `onnxruntime` package (pulled in by `piper-tts`) and automatically leverages AVX/AVX2 when available on the host.
 - **CUDA** requires the [`onnxruntime-gpu`](https://pypi.org/project/onnxruntime-gpu/) package plus cuDNN/cuBLAS at runtime, and a host with an NVIDIA driver (and `nvidia-container-toolkit` for containers). The provided GPU Docker image bundles these via pip wheels so no system-wide CUDA toolkit install is needed.
 
+> **⚠️ Supported GPUs**
+>
+> CUDA acceleration relies on ONNX Runtime's `CUDAExecutionProvider`, which requires a GPU with **compute capability ≥ 7.0**. This means:
+>
+> | ✅ Compatible (Turing and newer) | ❌ Not compatible (Pascal and older) |
+> |---|---|
+> | T4, T6 (datacenter) | GTX 1050 – 1080 Ti |
+> | RTX 20xx series (GTX/Titan RTX) | GTX 9xx / Titan X (Pascal/Maxwell) |
+> | RTX 30xx / 40xx / 50xx series | Quadro P-series (Pascal) |
+> | V100 and newer datacenter GPUs | Any GPU with compute capability < 7.0 |
+>
+> If your GPU is not listed as compatible, the server will automatically fall back to **CPU** inference when `TTS_DEVICE=auto` (or emit a warning with `TTS_DEVICE=cuda`). CPU mode works on all hardware and is perfectly usable for moderate workloads — see [Configuration](#configuration) to force it explicitly.
+
 ## Installation
 
 ### From source (local development)

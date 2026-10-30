@@ -139,6 +139,44 @@ def test_speech_unknown_voice_returns_404() -> None:
     assert resp.status_code == 404
 
 
+def test_speech_voice_field_takes_precedence_over_model() -> None:
+    client, _ = _make_client()
+    # `voice` carries the Piper voice id and wins over `model`.
+    resp = client.post(
+        "/v1/audio/speech",
+        json={"model": "en_US-lessac-medium", "input": "Bonjour.", "voice": "fr_FR-upmc-medium"},
+    )
+    assert resp.status_code == 200
+
+
+def test_speech_voice_field_only() -> None:
+    client, _ = _make_client()
+    # `model` is optional when `voice` is provided.
+    resp = client.post(
+        "/v1/audio/speech",
+        json={"input": "Bonjour.", "voice": "fr_FR-upmc-medium"},
+    )
+    assert resp.status_code == 200
+
+
+def test_speech_voice_field_with_unknown_id_returns_404() -> None:
+    client, _ = _make_client()
+    resp = client.post(
+        "/v1/audio/speech",
+        json={"model": "en_US-lessac-medium", "input": "hi", "voice": "xx_XX-doesnotexist"},
+    )
+    assert resp.status_code == 404
+
+
+def test_speech_no_voice_and_no_model_returns_400() -> None:
+    client, _ = _make_client()
+    resp = client.post(
+        "/v1/audio/speech",
+        json={"input": "hi"},
+    )
+    assert resp.status_code == 400
+
+
 def test_speech_bad_response_format_returns_400() -> None:
     client, _ = _make_client()
     resp = client.post(
