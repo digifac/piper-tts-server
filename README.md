@@ -1,5 +1,8 @@
 # piper-tts-server
 
+[![CI](https://github.com/digifac/piper-tts-server/actions/workflows/ci.yml/badge.svg)](https://github.com/digifac/piper-tts-server/actions/workflows/ci.yml)
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](./LICENSE)
+
 A low-latency text-to-speech server based on [Piper](https://github.com/OHF-Voice/piper1-gpl), exposing an **OpenAI-compatible HTTP API**. Inference runs on ONNX Runtime via the [`piper-tts`](https://pypi.org/project/piper-tts/) library.
 
 ## Features
