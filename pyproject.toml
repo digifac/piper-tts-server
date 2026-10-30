@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "piper-tts-server"
-version = "0.1.2"
+version = "0.1.3"
 description = "Low-latency, OpenAI-compatible text-to-speech HTTP server based on Piper (ONNX Runtime)."
 readme = "README.md"
 requires-python = ">=3.10"
