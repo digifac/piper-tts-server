@@ -51,6 +51,7 @@ spec:
               cpu: "500m"
               memory: "1Gi"
             limits:
+              cpu: "4000m"
               # Sized for up to MAX_LOADED_VOICES (4) large voice models + ONNX runtime overhead.
               memory: "3Gi"
       volumes:
