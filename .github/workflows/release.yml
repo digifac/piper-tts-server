@@ -1,0 +1,82 @@
+name: Release
+
+# Triggered only on beta tags (v0.*). To support v1+ later, widen the pattern.
+on:
+  push:
+    tags: ["v0.*"]
+
+permissions:
+  contents: write # create GitHub release
+  packages: write # push to GHCR
+
+jobs:
+  build-push:
+    name: Build & push ${{ matrix.variant }} image (amd64)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [cpu, gpu]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Derive the version from the tag (strip leading "v"). v0.1.0 -> 0.1.0
+      - name: Extract version
+        id: ver
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Single GHCR package, suffixed tags (Option A):
+      #   cpu -> piper-tts-server:{VERSION} + :latest
+      #   gpu -> piper-tts-server:{VERSION}-gpu + :latest-gpu
+      - name: Build & push ${{ matrix.variant }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.${{ matrix.variant }}
+          platforms: linux/amd64 # amd64 only for now (no QEMU needed)
+          push: true
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,scope=${{ matrix.variant }},mode=max
+          tags: |
+            ghcr.io/${{ github.repository_owner | lowercase }}/piper-tts-server:${{ steps.ver.outputs.version }}${{ matrix.variant == 'gpu' && '-gpu' || '' }}
+            ghcr.io/${{ github.repository_owner | lowercase }}/piper-tts-server:latest${{ matrix.variant == 'gpu' && '-gpu' || '' }}
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-push]
+    steps:
+      # $GITHUB_ENV is not shared across jobs, so re-derive the version here.
+      - name: Extract version
+        id: ver
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            ## Images Docker (GHCR)
+
+            | Variante | Tag image GHCR | Pull |
+            |---|---|---|
+            | CPU  | `${{ steps.ver.outputs.version }}`     | `docker pull ghcr.io/digifac/piper-tts-server:${{ steps.ver.outputs.version }}` |
+            | GPU  | `${{ steps.ver.outputs.version }}-gpu` | `docker pull ghcr.io/digifac/piper-tts-server:${{ steps.ver.outputs.version }}-gpu` |
+
+            > Les images sont aussi disponibles sous les tags `latest` et `latest-gpu`.
+            > Architecture : amd64 uniquement pour l'instant.

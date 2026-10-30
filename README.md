@@ -1,6 +1,7 @@
 # piper-tts-server
 
 [![CI](https://github.com/digifac/piper-tts-server/actions/workflows/ci.yml/badge.svg)](https://github.com/digifac/piper-tts-server/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/digifac/piper-tts-server?label=release&color=brightgreen)](https://github.com/digifac/piper-tts-server/releases/latest)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](./LICENSE)
 
 A low-latency text-to-speech server based on [Piper](https://github.com/OHF-Voice/piper1-gpl), exposing an **OpenAI-compatible HTTP API**. Inference runs on ONNX Runtime via the [`piper-tts`](https://pypi.org/project/piper-tts/) library.
@@ -46,14 +47,31 @@ python -m piper_tts_server     # listens on 0.0.0.0:8000 by default
 
 ### Docker
 
-Two images are provided — `cpu` (default) and `gpu`:
+Versioned images are published to [GHCR](https://ghcr.io/digifac/piper-tts-server) on every `v0.*` tag (see [Releases](https://github.com/digifac/piper-tts-server/releases)). Pull the latest release:
+
+```bash
+docker pull ghcr.io/digifac/piper-tts-server:latest          # CPU inference
+docker pull ghcr.io/digifac/piper-tts-server:latest-gpu      # CUDA GPU (needs NVIDIA driver + nvidia-container-toolkit)
+```
+
+Or pin a specific version, e.g. `0.1.0`:
+
+```bash
+docker run --rm -p 8000:8000 ghcr.io/digifac/piper-tts-server:0.1.0
+# GPU variant (on an NVIDIA host):
+docker run --rm --gpus all -e TTS_DEVICE=cuda -p 8000:8000 ghcr.io/digifac/piper-tts-server:0.1.0-gpu
+```
+
+> Images are built for `linux/amd64` only at the moment.
+
+You can also build locally from source (useful when hacking on the Dockerfiles):
 
 ```bash
 docker build -f Dockerfile.cpu -t piper-tts-server:cpu .
 docker build -f Dockerfile.gpu -t piper-tts-server:gpu .   # needs NVIDIA driver + nvidia-container-toolkit on the host
 ```
 
-Or use Compose (profiles `cpu` and `gpu`):
+Or use Compose (profiles `cpu` and `gpu`; note these reference locally-built images):
 
 ```bash
 docker compose up cpu                 # CPU inference
