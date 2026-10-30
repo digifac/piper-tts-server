@@ -64,6 +64,18 @@ docker run --rm -p 8000:8000 ghcr.io/digifac/piper-tts-server:0.1.0
 docker run --rm --gpus all -e TTS_DEVICE=cuda -p 8000:8000 ghcr.io/digifac/piper-tts-server:0.1.0-gpu
 ```
 
+> **Voice cache:** downloaded voice models are cached in `TTS_VOICE_CACHE_DIR` (default `/data/voices`). Mount a volume there so voices persist across container restarts and don't need to be re-downloaded:
+>
+> ```bash
+> docker run --rm -p 8000:8000 \
+>   -v piper-voices:/data/voices \
+>   ghcr.io/digifac/piper-tts-server:latest
+> # GPU variant (on an NVIDIA host):
+> docker run --rm --gpus all -e TTS_DEVICE=cuda -p 8000:8000 \
+>   -v piper-voices:/data/voices \
+>   ghcr.io/digifac/piper-tts-server:latest-gpu
+> ```
+
 > Images are built for `linux/amd64` only at the moment.
 
 You can also build locally from source (useful when hacking on the Dockerfiles):
