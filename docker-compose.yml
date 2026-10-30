@@ -1,7 +1,6 @@
 # piper-tts-server — Docker Compose.
-# Two profiles are provided: `cpu` (default) and `gpu`.
+# A single `cpu` profile is provided for CPU inference.
 #   docker compose up cpu          # CPU inference
-#   docker compose --profile gpu up  # CUDA GPU inference (needs NVIDIA driver + nvidia-container-toolkit)
 
 services:
   tts-cpu:
@@ -20,30 +19,6 @@ services:
       TTS_HF_TOKEN: ${HF_TOKEN:-}
     volumes:
       - voices:/data/voices
-    restart: unless-stopped
-
-  tts-gpu:
-    image: piper-tts-server:gpu
-    build:
-      context: .
-      dockerfile: Dockerfile.gpu
-    profiles: ["gpu"]
-    ports:
-      - "${TTS_PORT:-8000}:8000"
-    environment:
-      TTS_DEVICE: cuda
-      TTS_VOICE_CACHE_DIR: /data/voices
-      TTS_MAX_LOADED_VOICES: ${TTS_MAX_LOADED_VOICES:-4}
-      TTS_HF_TOKEN: ${HF_TOKEN:-}
-    volumes:
-      - voices:/data/voices
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     restart: unless-stopped
 
 volumes:

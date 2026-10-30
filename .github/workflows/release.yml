@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [cpu, gpu]
+        variant: [cpu]
     steps:
       - uses: actions/checkout@v4
 
@@ -41,7 +41,6 @@ jobs:
 
       # Single GHCR package, suffixed tags (Option A):
       #   cpu -> piper-tts-server:{VERSION} + :latest
-      #   gpu -> piper-tts-server:{VERSION}-gpu + :latest-gpu
       - name: Build & push ${{ matrix.variant }} image
         uses: docker/build-push-action@v6
         with:
@@ -52,8 +51,8 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.variant }}
           cache-to: type=gha,scope=${{ matrix.variant }},mode=max
           tags: |
-            ghcr.io/${{ steps.ver.outputs.owner }}/piper-tts-server:${{ steps.ver.outputs.version }}${{ matrix.variant == 'gpu' && '-gpu' || '' }}
-            ghcr.io/${{ steps.ver.outputs.owner }}/piper-tts-server:latest${{ matrix.variant == 'gpu' && '-gpu' || '' }}
+            ghcr.io/${{ steps.ver.outputs.owner }}/piper-tts-server:${{ steps.ver.outputs.version }}
+            ghcr.io/${{ steps.ver.outputs.owner }}/piper-tts-server:latest
 
   release:
     name: Create GitHub Release
@@ -78,7 +77,6 @@ jobs:
             | Variante | Tag image GHCR | Pull |
             |---|---|---|
             | CPU  | `${{ steps.ver.outputs.version }}`     | `docker pull ghcr.io/digifac/piper-tts-server:${{ steps.ver.outputs.version }}` |
-            | GPU  | `${{ steps.ver.outputs.version }}-gpu` | `docker pull ghcr.io/digifac/piper-tts-server:${{ steps.ver.outputs.version }}-gpu` |
 
-            > Les images sont aussi disponibles sous les tags `latest` et `latest-gpu`.
+            > L'image est aussi disponible sous le tag `latest`.
             > Architecture : amd64 uniquement pour l'instant.

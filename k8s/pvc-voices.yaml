@@ -1,5 +1,5 @@
 # PersistentVolumeClaim for caching downloaded Piper voice models.
-# Mounted at /data/voices in both the CPU and GPU deployments so that voices are
+# Mounted at /data/voices in the deployment so that voices are
 # not re-downloaded on pod restart or rescheduling.
 #
 # NOTE: no `storageClassName` is set, so this uses the cluster's default StorageClass

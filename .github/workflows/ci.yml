@@ -37,11 +37,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [cpu, gpu]
+        variant: [cpu]
     steps:
       - uses: actions/checkout@v4
 
-      # Building the GPU image only validates that it compiles and its deps resolve;
-      # actual CUDA inference is not run in CI (no GPU on the runner).
       - name: Build ${{ matrix.variant }} image
         run: docker build -f Dockerfile.${{ matrix.variant }} -t piper-tts-server:${{ matrix.variant }} .

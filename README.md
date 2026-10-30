@@ -11,15 +11,15 @@ A low-latency text-to-speech server based on [Piper](https://github.com/OHF-Voic
 ## Features
 
 - OpenAI-compatible HTTP API for speech synthesis and voice listing — works with the official OpenAI SDKs as well as plain `curl`.
-- **CPU by default, optional CUDA GPU acceleration.** The inference device is auto-detected at startup (CUDA when a compatible runtime + GPU are present) and can be overridden with an environment variable.
+- **CPU inference** via ONNX Runtime, automatically leveraging AVX/AVX2 when available on the host. The device can be forced explicitly with an environment variable.
 - Low time-to-first-byte: `/v1/audio/speech` streams WAV frames back as synthesis progresses (`StreamingResponse`).
 - Automatic voice model downloads with on-disk caching, plus an in-memory LRU of loaded models so the most-recently-used voices stay hot.
 - HuggingFace-based discovery of available voices, exposed through the `/v1/audio/voices` endpoint (TTL-cached).
 - Health check (`/healthz`) and Prometheus-compatible metrics (`/metrics`).
 
-## Acceleration
+## Inference device
 
-The server picks its inference device at startup:
+The server runs inference on the CPU via ONNX Runtime, automatically leveraging AVX/AVX2 when available on the host. The device can be forced explicitly:
 
 | `TTS_DEVICE` | Behavior |
 |--------------|----------|
@@ -27,21 +27,7 @@ The server picks its inference device at startup:
 | `cpu`            | Force CPU inference. |
 | `cuda`           | Require CUDA; falls back to CPU with a warning if no GPU runtime is present. |
 
-- **CPU** uses the plain `onnxruntime` package (pulled in by `piper-tts`) and automatically leverages AVX/AVX2 when available on the host.
-- **CUDA** requires the [`onnxruntime-gpu`](https://pypi.org/project/onnxruntime-gpu/) package plus cuDNN/cuBLAS at runtime, and a host with an NVIDIA driver (and `nvidia-container-toolkit` for containers). The provided GPU Docker image bundles these via pip wheels so no system-wide CUDA toolkit install is needed.
-
-> **⚠️ Supported GPUs**
->
-> CUDA acceleration relies on ONNX Runtime's `CUDAExecutionProvider`, which requires a GPU with **compute capability ≥ 7.0**. This means:
->
-> | ✅ Compatible (Turing and newer) | ❌ Not compatible (Pascal and older) |
-> |---|---|
-> | T4, T6 (datacenter) | GTX 1050 – 1080 Ti |
-> | RTX 20xx series (GTX/Titan RTX) | GTX 9xx / Titan X (Pascal/Maxwell) |
-> | RTX 30xx / 40xx / 50xx series | Quadro P-series (Pascal) |
-> | V100 and newer datacenter GPUs | Any GPU with compute capability < 7.0 |
->
-> If your GPU is not listed as compatible, the server will automatically fall back to **CPU** inference when `TTS_DEVICE=auto` (or emit a warning with `TTS_DEVICE=cuda`). CPU mode works on all hardware and is perfectly usable for moderate workloads — see [Configuration](#configuration) to force it explicitly.
+CPU mode works on all hardware and is perfectly usable for moderate workloads — see [Configuration](#configuration) to force it explicitly.
 
 ## Installation
 
@@ -50,8 +36,6 @@ The server picks its inference device at startup:
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"        # CPU inference + dev/test tooling
-# or, for local GPU inference:
-pip install -e ".[gpu,dev]"    # adds onnxruntime-gpu (you still need cuDNN/cuBLAS at runtime)
 ```
 
 Run the server:
@@ -66,15 +50,12 @@ Versioned images are published to [GHCR](https://ghcr.io/digifac/piper-tts-serve
 
 ```bash
 docker pull ghcr.io/digifac/piper-tts-server:latest          # CPU inference
-docker pull ghcr.io/digifac/piper-tts-server:latest-gpu      # CUDA GPU (needs NVIDIA driver + nvidia-container-toolkit)
 ```
 
 Or pin a specific version, e.g. `0.1.0`:
 
 ```bash
 docker run --rm -p 8000:8000 ghcr.io/digifac/piper-tts-server:0.1.0
-# GPU variant (on an NVIDIA host):
-docker run --rm --gpus all -e TTS_DEVICE=cuda -p 8000:8000 ghcr.io/digifac/piper-tts-server:0.1.0-gpu
 ```
 
 > **Voice cache:** downloaded voice models are cached in `TTS_VOICE_CACHE_DIR` (default `/data/voices`). Mount a volume there so voices persist across container restarts and don't need to be re-downloaded. A complete example for running the server as a long-lived daemon:
@@ -86,31 +67,20 @@ docker run --rm --gpus all -e TTS_DEVICE=cuda -p 8000:8000 ghcr.io/digifac/piper
 >   -p 8000:8000 \
 >   -v piper-voices:/data/voices \
 >   ghcr.io/digifac/piper-tts-server:latest
-> # GPU variant (on an NVIDIA host):
-> docker run -d \
->   --name piper-tts-server \
->   --restart unless-stopped \
->   --gpus all \
->   -e TTS_DEVICE=cuda \
->   -p 8000:8000 \
->   -v piper-voices:/data/voices \
->   ghcr.io/digifac/piper-tts-server:latest-gpu
 > ```
 
 > Images are built for `linux/amd64` only at the moment.
 
-You can also build locally from source (useful when hacking on the Dockerfiles):
+You can also build locally from source (useful when hacking on the Dockerfile):
 
 ```bash
 docker build -f Dockerfile.cpu -t piper-tts-server:cpu .
-docker build -f Dockerfile.gpu -t piper-tts-server:gpu .   # needs NVIDIA driver + nvidia-container-toolkit on the host
 ```
 
-Or use Compose (profiles `cpu` and `gpu`; note these reference locally-built images):
+Or use Compose (the `cpu` profile references a locally-built image):
 
 ```bash
 docker compose up cpu                 # CPU inference
-docker compose --profile gpu up       # CUDA GPU inference
 ```
 
 ### Kubernetes
@@ -119,10 +89,7 @@ Manifests live in [`k8s/`](./k8s). The voice cache is backed by a PersistentVolu
 
 ```bash
 kubectl apply -f k8s/pvc-voices.yaml
-# CPU:
 kubectl apply -f k8s/deployment-cpu.yaml -f k8s/service.yaml
-# or GPU (requires a node with an NVIDIA GPU + the nvidia device plugin):
-kubectl apply -f k8s/deployment-gpu.yaml -f k8s/service.yaml
 ```
 
 > **PVC note:** `k8s/pvc-voices.yaml` requests 500Mi and sets no explicit `storageClassName`, so it uses your cluster's default StorageClass (commonly `local-path`). Set an explicit `storageClassName:` if you need a specific provisioner, and raise the request up to ~2Gi if you cache many voices.

@@ -12,8 +12,6 @@ cd piper-tts-server
 
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"        # CPU inference + dev/test tooling (pytest, httpx, ruff)
-# or, for local GPU inference:
-pip install -e ".[gpu,dev]"    # adds onnxruntime-gpu (you still need cuDNN/cuBLAS at runtime)
 ```
 
 Run the server locally:
@@ -45,7 +43,7 @@ pytest -q        # test suite (CPU path; onnxruntime-gpu is not required)
 
 ## Making a release
 
-Releases are beta (`0.x`) for now, driven by git tags — there is no automatic version bump on every push to `main`. The [`Release`](./.github/workflows/release.yml) workflow runs when you push a tag matching `v0.*`: it builds both Docker images (CPU and GPU), pushes them to [GHCR](https://ghcr.io/digifac/piper-tts-server), and creates the GitHub release with auto-generated notes plus pull commands.
+Releases are beta (`0.x`) for now, driven by git tags — there is no automatic version bump on every push to `main`. The [`Release`](./.github/workflows/release.yml) workflow runs when you push a tag matching `v0.*`: it builds the Docker image (CPU), pushes it to [GHCR](https://ghcr.io/digifac/piper-tts-server), and creates the GitHub release with auto-generated notes plus pull commands.
 
 To cut a new release:
 

@@ -1,7 +1,5 @@
 # Service exposing the piper-tts-server HTTP API.
-# The CPU and GPU deployments share this service via the `app: piper-tts` label;
-# run only ONE of them at a time (they both bind port 8000). To target a specific
-# variant, add a `variant` selector below (e.g. matchLabels with variant: cpu|gpu).
+# Selects the deployment via the `app: piper-tts` label.
 apiVersion: v1
 kind: Service
 metadata:
